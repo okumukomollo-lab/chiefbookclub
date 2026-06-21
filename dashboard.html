@@ -111,6 +111,17 @@ tr:last-child td{border-bottom:none}
   .tabs{display:none}
   .shelf-grid{grid-template-columns:repeat(2,1fr)}
 }
+
+/* Adult Corner age gate */
+.adult-gate{
+  max-width:480px;margin:60px auto;text-align:center;
+  background:var(--moss);border:1px solid var(--line);border-radius:var(--radius-lg);
+  padding:48px 36px;
+}
+.adult-gate-icon{font-size:42px;margin-bottom:18px}
+.adult-gate-title{font-family:var(--font-display);font-size:24px;font-weight:600;margin-bottom:14px}
+.adult-gate-text{font-size:14px;color:rgba(247,243,232,0.65);line-height:1.6;margin-bottom:28px}
+.adult-gate-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -120,6 +131,7 @@ tr:last-child td{border-bottom:none}
     <div class="brand"><div class="brand-mark">C</div><div class="brand-name">Chief Book Club</div></div>
     <div class="tabs">
       <button class="tab-btn active" data-view="shelf" onclick="switchView('shelf')">The Shelf</button>
+      <button class="tab-btn" data-view="adult" onclick="switchView('adult')">🔞 Adult Corner</button>
       <button class="tab-btn" data-view="meetings" onclick="switchView('meetings')">Meetings</button>
       <button class="tab-btn" data-view="library" onclick="switchView('library')">My Library</button>
       <button class="tab-btn" id="admin-tab-btn" data-view="admin" onclick="switchView('admin')" style="display:none">Admin</button>
@@ -137,6 +149,23 @@ tr:last-child td{border-bottom:none}
     <div class="eyebrow">The shelf</div>
     <h1 class="page-title">Browse the collection</h1>
     <div class="shelf-grid" id="shelf-grid"></div>
+  </div>
+
+  <div class="view" id="view-adult">
+    <div id="adult-gate" class="adult-gate">
+      <div class="adult-gate-icon">🔞</div>
+      <h2 class="adult-gate-title">Adult Corner</h2>
+      <p class="adult-gate-text">This shelf holds mature fiction and frank self-development titles meant for adult readers. By continuing, you confirm you are 18 years or older.</p>
+      <div class="adult-gate-actions">
+        <button class="btn btn-gold" style="width:auto" onclick="confirmAdultAge()">I am 18 or older — continue</button>
+        <button class="btn btn-outline" style="width:auto" onclick="switchView('shelf')">Take me back</button>
+      </div>
+    </div>
+    <div id="adult-content" style="display:none">
+      <div class="eyebrow">🔞 Adult Corner</div>
+      <h1 class="page-title">Mature fiction &amp; frank self-development</h1>
+      <div class="shelf-grid" id="adult-grid"></div>
+    </div>
   </div>
 
   <div class="view" id="view-meetings">
@@ -161,7 +190,7 @@ tr:last-child td{border-bottom:none}
         <button class="btn btn-gold btn-sm" onclick="openBookModal()">+ Add a book</button>
       </div>
       <table id="admin-books-table">
-        <thead><tr><th>Title</th><th>Author</th><th>Price</th><th>Sold</th><th></th></tr></thead>
+        <thead><tr><th>Title</th><th>Author</th><th>Shelf</th><th>Price</th><th>Sold</th><th></th></tr></thead>
         <tbody id="admin-books-body"></tbody>
       </table>
     </div>
@@ -207,6 +236,12 @@ tr:last-child td{border-bottom:none}
     <div class="fl"><label>Title</label><input type="text" id="nb-title" placeholder="e.g. Atomic Habits"></div>
     <div class="fl"><label>Author</label><input type="text" id="nb-author" placeholder="e.g. James Clear"></div>
     <div class="fl"><label>Price (KES)</label><input type="number" id="nb-price" placeholder="150"></div>
+    <div class="fl"><label>Shelf</label>
+      <select id="nb-category">
+        <option value="general">General Shelf — open to all members</option>
+        <option value="adult_corner">🔞 Adult Corner — requires age confirmation</option>
+      </select>
+    </div>
     <div class="fl"><label>PDF link (Google Drive, Dropbox, etc — shareable link)</label><input type="text" id="nb-link" placeholder="https://..."></div>
     <button class="btn btn-gold" onclick="addBook()">Add to shelf</button>
     <div class="modal-status" id="book-modal-status"></div>
@@ -330,6 +365,19 @@ function switchView(view){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('view-'+view).classList.add('active');
   document.querySelector(`.tab-btn[data-view="${view}"]`).classList.add('active');
+  if(view==='adult') renderAdultGateState();
+}
+
+function renderAdultGateState(){
+  const confirmed = localStorage.getItem('cbc_adult_confirmed') === 'true';
+  document.getElementById('adult-gate').style.display = confirmed ? 'none' : '';
+  document.getElementById('adult-content').style.display = confirmed ? '' : 'none';
+  if(confirmed) renderAdultShelf();
+}
+
+function confirmAdultAge(){
+  localStorage.setItem('cbc_adult_confirmed', 'true');
+  renderAdultGateState();
 }
 
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
@@ -343,11 +391,33 @@ function ownsBook(bookId){
 
 function renderShelf(){
   const grid = document.getElementById('shelf-grid');
-  if(!DB.books.length){
+  const generalBooks = DB.books.filter(b => (b.category||'general') === 'general');
+  if(!generalBooks.length){
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📚</div>No books on the shelf yet. ${isAdmin()?'Add one from the Admin tab.':'Check back soon.'}</div>`;
     return;
   }
-  grid.innerHTML = DB.books.map((b,i)=>{
+  grid.innerHTML = generalBooks.map((b,i)=>{
+    const owned = ownsBook(b.id);
+    return `<div class="book-card">
+      <div class="book-cover" style="background:${COVER_COLORS[i%4]}">📖</div>
+      <div class="book-title">${escapeHtml(b.title)}</div>
+      <div class="book-author">${escapeHtml(b.author||'')}</div>
+      <div class="book-price">KES ${b.price}</div>
+      ${owned
+        ? `<button class="btn btn-owned" onclick="window.open('${b.link}','_blank')">✓ Open PDF</button>`
+        : `<button class="btn btn-gold" onclick="openBuyModal('${b.id}')">Buy now</button>`}
+    </div>`;
+  }).join('');
+}
+
+function renderAdultShelf(){
+  const grid = document.getElementById('adult-grid');
+  const adultBooks = DB.books.filter(b => b.category === 'adult_corner');
+  if(!adultBooks.length){
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🔞</div>No titles here yet. ${isAdmin()?'Add one from the Admin tab and tag it \"Adult Corner\".':'Check back soon.'}</div>`;
+    return;
+  }
+  grid.innerHTML = adultBooks.map((b,i)=>{
     const owned = ownsBook(b.id);
     return `<div class="book-card">
       <div class="book-cover" style="background:${COVER_COLORS[i%4]}">📖</div>
@@ -479,6 +549,7 @@ function openBookModal(){
   document.getElementById('nb-title').value='';
   document.getElementById('nb-author').value='';
   document.getElementById('nb-price').value='';
+  document.getElementById('nb-category').value='general';
   document.getElementById('nb-link').value='';
   document.getElementById('book-modal-status').textContent='';
   openModal('book-modal-overlay');
@@ -487,16 +558,17 @@ async function addBook(){
   const title = document.getElementById('nb-title').value.trim();
   const author = document.getElementById('nb-author').value.trim();
   const price = Number(document.getElementById('nb-price').value);
+  const category = document.getElementById('nb-category').value;
   const link = document.getElementById('nb-link').value.trim();
   const statusEl = document.getElementById('book-modal-status');
   if(!title || !price || !link){
     statusEl.className='modal-status error'; statusEl.textContent='Title, price, and PDF link are required.'; return;
   }
-  const book = { id:'bk'+Date.now(), title, author, price, link, addedAt:new Date().toISOString() };
+  const book = { id:'bk'+Date.now(), title, author, price, category, link, addedAt:new Date().toISOString() };
   DB.books.push(book);
   await dbUpsert('cbc_books', book.id, book);
   statusEl.className='modal-status success'; statusEl.textContent='Added to shelf!';
-  renderShelf(); renderAdmin();
+  renderShelf(); renderAdultShelf(); renderAdmin();
   setTimeout(()=>closeModal('book-modal-overlay'), 800);
 }
 
@@ -527,8 +599,9 @@ function renderAdmin(){
   if(!isAdmin()) return;
   document.getElementById('admin-books-body').innerHTML = DB.books.map(b=>{
     const sold = DB.purchases.filter(p=>p.bookId===b.id).length;
-    return `<tr><td>${escapeHtml(b.title)}</td><td>${escapeHtml(b.author||'—')}</td><td>KES ${b.price}</td><td>${sold}</td><td><a href="${b.link}" target="_blank" style="color:var(--gold);font-size:12px;text-decoration:underline">View PDF</a></td></tr>`;
-  }).join('') || `<tr><td colspan="5" style="color:rgba(247,243,232,0.4)">No books yet</td></tr>`;
+    const isAdult = b.category==='adult_corner';
+    return `<tr><td>${escapeHtml(b.title)}</td><td>${escapeHtml(b.author||'—')}</td><td><span class="pill ${isAdult?'pill-ember':'pill-green'}">${isAdult?'🔞 Adult Corner':'General'}</span></td><td>KES ${b.price}</td><td>${sold}</td><td><a href="${b.link}" target="_blank" style="color:var(--gold);font-size:12px;text-decoration:underline">View PDF</a></td></tr>`;
+  }).join('') || `<tr><td colspan="6" style="color:rgba(247,243,232,0.4)">No books yet</td></tr>`;
 
   document.getElementById('admin-meetings-body').innerHTML = DB.meetings.map(m=>{
     const d = new Date(m.datetime);
