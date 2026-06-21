@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Member Login — Chief Book Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --ink:#1B2B22;--ink-deep:#0D1410;--parchment:#F7F3E8;--parchment-dim:#EFE8D8;
+  --gold:#C9A227;--gold-bright:#E0BC4A;--moss:#2D4838;--ember:#E8633C;
+  --line:rgba(247,243,232,0.12);
+  --font-display:'Fraunces',serif;--font-body:'Inter',sans-serif;--font-mono:'JetBrains Mono',monospace;
+  --radius:4px;--radius-lg:8px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:var(--font-body);background:var(--ink);color:var(--parchment);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit}
+.card{
+  background:var(--parchment);color:var(--ink-deep);
+  border-radius:var(--radius-lg);max-width:420px;width:100%;
+  padding:40px 36px;box-shadow:0 30px 70px rgba(0,0,0,0.4);
+}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.brand-mark{width:36px;height:36px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:16px;color:var(--ink-deep)}
+.brand-name{font-family:var(--font-display);font-size:17px;font-weight:600;color:var(--ink-deep)}
+h1{font-family:var(--font-display);font-size:26px;font-weight:600;margin-bottom:8px}
+.sub{font-size:14px;color:#5b6760;margin-bottom:28px}
+.fl{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+.fl label{font-size:12px;font-weight:600;color:#4a5550;text-transform:uppercase;letter-spacing:0.04em}
+.fl input{padding:13px 14px;border-radius:5px;border:1.5px solid #d8d0bd;font-size:15px;background:#fff;color:var(--ink-deep)}
+.fl input:focus{outline:none;border-color:var(--gold)}
+.btn{width:100%;padding:14px;border-radius:4px;border:none;background:var(--gold);color:var(--ink-deep);font-weight:700;font-size:15px;cursor:pointer;transition:background .2s}
+.btn:hover{background:var(--gold-bright)}
+.btn:disabled{opacity:0.6;cursor:not-allowed}
+.status{margin-top:14px;font-size:13.5px;min-height:18px}
+.status.error{color:#B8442E}
+.foot{margin-top:24px;text-align:center;font-size:13px;color:#6b7268}
+.foot a{color:var(--gold);text-decoration:underline;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="brand"><div class="brand-mark">C</div><div class="brand-name">Chief Book Club</div></div>
+  <h1>Welcome back</h1>
+  <p class="sub">Enter the phone number you registered with — no password needed, your M-Pesa-verified number is your key.</p>
+
+  <div class="fl">
+    <label>Phone number</label>
+    <input type="tel" id="login-phone" placeholder="07XXXXXXXX" autofocus>
+  </div>
+  <button class="btn" onclick="doLogin()" id="login-btn">Log in</button>
+  <div class="status" id="login-status"></div>
+
+  <p class="foot">Not a member yet? <a href="index.html">Join the club →</a></p>
+</div>
+
+<script>
+const SUPABASE_URL = ''; // same as index.html
+const SUPABASE_ANON_KEY = '';
+let supabaseClient = null;
+let dbMode = 'session';
+
+function initSupabase(){
+  if(!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  dbMode = 'supabase';
+}
+async function dbFetchAll(table){
+  if(dbMode!=='supabase') return [];
+  try{
+    const { data, error } = await supabaseClient.from(table).select('*');
+    if(error) throw error;
+    return data || [];
+  }catch(e){ console.error('dbFetchAll failed', table, e); return []; }
+}
+
+async function doLogin(){
+  const phoneRaw = document.getElementById('login-phone').value.trim();
+  const phone = phoneRaw.replace(/[^0-9]/g,'');
+  const statusEl = document.getElementById('login-status');
+  const btnEl = document.getElementById('login-btn');
+
+  if(!phone || phone.length<9){
+    statusEl.className='status error';
+    statusEl.textContent='Please enter a valid phone number.';
+    return;
+  }
+
+  btnEl.disabled=true; btnEl.textContent='Checking…';
+  statusEl.className='status'; statusEl.textContent='';
+
+  const members = await dbFetchAll('cbc_members');
+  // Normalize: stored phones might be 0712..., 712..., or 254712...
+  const norm = (p)=> p.replace(/^0/,'254').replace(/^(?!254)/, p.startsWith('254')?'':'254');
+  const match = members.find(m => m.phone === phone || norm(m.phone) === norm(phone));
+
+  if(!match){
+    statusEl.className='status error';
+    statusEl.textContent='No membership found for that number. Check the number, or join below.';
+    btnEl.disabled=false; btnEl.textContent='Log in';
+    return;
+  }
+
+  localStorage.setItem('cbc_session_phone', match.phone);
+  localStorage.setItem('cbc_session_id', match.id);
+  window.location.href = 'dashboard.html';
+}
+
+document.getElementById('login-phone').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') doLogin();
+});
+
+initSupabase();
+</script>
+</body>
+</html>

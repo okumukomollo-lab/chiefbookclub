@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chief Book Club — Read. Discuss. Grow.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  /* ===== Color tokens ===== */
+  --ink:#1B2B22;          /* deep forest ink - primary dark bg */
+  --ink-deep:#0D1410;     /* near-black - text on light, deepest shadows */
+  --parchment:#F7F3E8;    /* warm parchment - light surfaces */
+  --parchment-dim:#EFE8D8;/* slightly dimmer parchment for cards-on-cream */
+  --gold:#C9A227;         /* old-gold accent */
+  --gold-bright:#E0BC4A;  /* hover state for gold */
+  --moss:#2D4838;         /* mid-green - cards on dark */
+  --moss-light:#3D5C48;   /* lighter moss for hover */
+  --ember:#E8633C;        /* warm terracotta - used ONLY for live/urgent */
+  --line:rgba(247,243,232,0.12);
+  --line-dark:rgba(13,20,16,0.12);
+  --shadow:0 4px 24px rgba(13,20,16,0.18);
+
+  --font-display:'Fraunces',serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+
+  --radius:4px;
+  --radius-lg:8px;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--font-body);
+  background:var(--ink);
+  color:var(--parchment);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+img{max-width:100%;display:block}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+/* ===== Utility ===== */
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--gold);
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow::before{content:'';width:24px;height:1px;background:var(--gold);display:inline-block}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;
+  font-family:var(--font-body);font-weight:600;font-size:14.5px;
+  border-radius:var(--radius);
+  transition:all .2s ease;
+  white-space:nowrap;
+}
+.btn-gold{background:var(--gold);color:var(--ink-deep)}
+.btn-gold:hover{background:var(--gold-bright);transform:translateY(-1px)}
+.btn-outline{border:1.5px solid rgba(247,243,232,0.35);color:var(--parchment)}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.btn-ember{background:var(--ember);color:var(--parchment)}
+.btn-ember:hover{background:#F0764F}
+.btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important}
+
+/* ===== Header ===== */
+header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(27,43,34,0.92);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;max-width:1180px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-mark{
+  width:38px;height:38px;border-radius:50%;
+  background:var(--gold);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-display);font-weight:700;font-size:17px;color:var(--ink-deep);
+  flex-shrink:0;
+}
+.brand-name{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:-0.01em}
+.brand-tag{font-size:10px;color:var(--gold);font-family:var(--font-mono);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-top:-2px}
+.nav-links{display:flex;align-items:center;gap:32px}
+.nav-link{font-size:14px;font-weight:500;color:rgba(247,243,232,0.75);transition:color .2s}
+.nav-link:hover{color:var(--gold)}
+.nav-actions{display:flex;align-items:center;gap:14px}
+
+/* ===== Hero ===== */
+.hero{
+  position:relative;
+  padding:88px 24px 100px;
+  overflow:hidden;
+}
+.hero-grid{
+  max-width:1180px;margin:0 auto;
+  display:grid;grid-template-columns:1.1fr 0.9fr;gap:64px;
+  align-items:center;
+}
+.hero-eyebrow{margin-bottom:22px}
+.hero h1{
+  font-family:var(--font-display);
+  font-size:clamp(40px,5.4vw,68px);
+  font-weight:600;
+  line-height:1.03;
+  letter-spacing:-0.015em;
+  margin-bottom:24px;
+}
+.hero h1 em{font-style:italic;color:var(--gold);font-weight:500}
+.hero p{
+  font-size:17px;color:rgba(247,243,232,0.7);
+  max-width:480px;margin-bottom:36px;line-height:1.65;
+}
+.hero-ctas{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:40px}
+.hero-stats{display:flex;gap:36px}
+.hstat-num{font-family:var(--font-display);font-size:28px;font-weight:600;color:var(--gold)}
+.hstat-label{font-size:12px;color:rgba(247,243,232,0.55);margin-top:2px}
+
+/* ===== Open book illustration ===== */
+.book-stage{position:relative;height:480px;display:flex;align-items:center;justify-content:center}
+.book{position:relative;width:340px;height:380px;perspective:1400px}
+.book-page{
+  position:absolute;top:0;width:170px;height:100%;
+  background:linear-gradient(135deg,var(--parchment) 0%,var(--parchment-dim) 100%);
+  border-radius:2px 10px 10px 2px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.45);
+}
+.book-page.left{left:0;border-radius:10px 2px 2px 10px;transform-origin:right center;animation:pageFloatL 6s ease-in-out infinite}
+.book-page.right{right:0;transform-origin:left center;animation:pageFloatR 6s ease-in-out infinite}
+.book-spine{
+  position:absolute;left:50%;top:-6px;bottom:-6px;width:14px;
+  background:var(--ink-deep);transform:translateX(-50%);
+  border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,0.3);
+}
+.book-lines{position:absolute;top:48px;left:24px;right:24px;display:flex;flex-direction:column;gap:11px}
+.book-page.right .book-lines{left:24px;right:24px}
+.bline{height:3px;background:rgba(13,20,16,0.13);border-radius:2px}
+.bline:nth-child(odd){width:88%}
+.bline:nth-child(even){width:72%}
+.bookmark{
+  position:absolute;top:-14px;left:calc(50% - 9px);width:18px;height:64px;
+  background:var(--ember);
+  clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%);
+  z-index:5;
+  filter:drop-shadow(0 8px 12px rgba(0,0,0,0.35));
+}
+@keyframes pageFloatL{0%,100%{transform:rotateY(0deg)}50%{transform:rotateY(-3deg)}}
+@keyframes pageFloatR{0%,100%{transform:rotateY(0deg)}50%{transform:rotateY(3deg)}}
+.orbit-tag{
+  position:absolute;
+  background:var(--moss);border:1px solid var(--line);
+  padding:9px 14px;border-radius:20px;
+  font-size:12px;font-weight:600;color:var(--parchment);
+  box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:6px;
+}
+.orbit-tag.t1{top:8%;left:-4%;animation:floatSlow 5s ease-in-out infinite}
+.orbit-tag.t2{bottom:14%;right:-6%;animation:floatSlow 5s ease-in-out infinite 1.2s}
+.orbit-tag.t3{top:48%;right:-10%;animation:floatSlow 5s ease-in-out infinite 2.4s}
+@keyframes floatSlow{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.dot-live{width:7px;height:7px;border-radius:50%;background:var(--ember);box-shadow:0 0 0 0 rgba(232,99,60,0.6);animation:pulseDot 2s infinite}
+@keyframes pulseDot{0%{box-shadow:0 0 0 0 rgba(232,99,60,0.5)}70%{box-shadow:0 0 0 8px rgba(232,99,60,0)}100%{box-shadow:0 0 0 0 rgba(232,99,60,0)}}
+
+@media (prefers-reduced-motion: reduce){
+  .book-page,.orbit-tag,.dot-live{animation:none!important}
+}
+
+/* ===== Section shared ===== */
+.section-title{
+  font-family:var(--font-display);
+  font-size:clamp(28px,3.6vw,42px);
+  font-weight:600;
+  letter-spacing:-0.01em;
+  margin-top:14px;margin-bottom:18px;
+  max-width:640px;
+}
+
+/* ===== How it works ===== */
+.how{padding:90px 24px;background:var(--ink-deep)}
+.how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:44px}
+.how-card{
+  background:var(--moss);
+  border:1px solid var(--line);
+  border-radius:var(--radius-lg);
+  padding:32px 28px;
+  position:relative;
+}
+.how-stamp{
+  font-family:var(--font-mono);font-size:11px;font-weight:700;
+  letter-spacing:0.16em;color:var(--gold);
+  border:1.5px solid var(--gold);
+  display:inline-block;padding:5px 12px;border-radius:3px;
+  transform:rotate(-2deg);
+  margin-bottom:20px;
+}
+.how-card h3{font-family:var(--font-display);font-size:21px;font-weight:600;margin-bottom:10px}
+.how-card p{font-size:14.5px;color:rgba(247,243,232,0.65);line-height:1.6}
+
+/* ===== Shelf ===== */
+.shelf{padding:90px 24px;background:var(--ink)}
+.shelf-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px}
+.shelf-row{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:22px;
+  margin-top:44px;
+}
+.book-card{cursor:default}
+.book-cover{
+  width:100%;aspect-ratio:3/4;
+  border-radius:6px 3px 3px 6px;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:14px;
+  box-shadow:0 12px 28px rgba(0,0,0,0.35);
+  position:relative;
+  border-left:6px solid rgba(0,0,0,0.25);
+}
+.bc-1{background:linear-gradient(150deg,#2D4838,#1B2B22)}
+.bc-2{background:linear-gradient(150deg,#C9A227,#8a6f1a)}
+.bc-3{background:linear-gradient(150deg,#E8633C,#a3422a)}
+.bc-4{background:linear-gradient(150deg,#3D5C48,#1B2B22)}
+.lock{font-size:26px;opacity:0.85}
+.book-card-title{font-size:14px;font-weight:600;margin-bottom:2px}
+.book-card-meta{font-size:12.5px;color:rgba(247,243,232,0.5)}
+
+/* ===== Meetings preview ===== */
+.meetings-preview{padding:90px 24px;background:var(--ink-deep)}
+.meetings-sub{font-size:16px;color:rgba(247,243,232,0.65);max-width:520px;margin-bottom:40px}
+.meeting-stamp-card{
+  display:flex;align-items:center;gap:28px;
+  background:var(--moss);border:1px solid var(--line);
+  border-radius:var(--radius-lg);
+  padding:26px 30px;
+  flex-wrap:wrap;
+}
+.stamp-date{
+  background:var(--parchment);color:var(--ink-deep);
+  border-radius:6px;padding:10px 18px;text-align:center;
+  font-family:var(--font-mono);min-width:78px;
+  transform:rotate(-3deg);
+  box-shadow:0 6px 16px rgba(0,0,0,0.3);
+}
+.stamp-day{font-size:11px;font-weight:700;letter-spacing:0.08em}
+.stamp-num{font-size:26px;font-weight:700;line-height:1}
+.stamp-info{flex:1;min-width:220px}
+.stamp-title{font-size:15px;font-weight:600;margin-bottom:4px}
+.stamp-time{font-size:13px;color:rgba(247,243,232,0.55);font-family:var(--font-mono)}
+
+/* ===== Join CTA ===== */
+.join-cta{padding:100px 24px;background:linear-gradient(160deg,var(--ink) 0%,#16221a 100%)}
+.join-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start}
+.join-card{
+  background:var(--parchment);color:var(--ink-deep);
+  border-radius:var(--radius-lg);
+  padding:34px;
+  box-shadow:0 24px 60px rgba(0,0,0,0.35);
+}
+.join-card-title{font-family:var(--font-display);font-size:21px;font-weight:600;margin-bottom:20px}
+.fl{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.fl label{font-size:12px;font-weight:600;color:#4a5550;text-transform:uppercase;letter-spacing:0.04em}
+.fl input{
+  padding:12px 14px;border-radius:5px;border:1.5px solid #d8d0bd;
+  font-family:var(--font-body);font-size:14.5px;background:#fff;color:var(--ink-deep);
+}
+.fl input:focus{border-color:var(--gold)}
+.join-submit{width:100%;justify-content:center;margin-top:6px;font-size:15px;padding:15px}
+.reg-status{margin-top:12px;font-size:13.5px;min-height:0}
+.reg-status.success{color:#2D6A3E}
+.reg-status.error{color:#B8442E}
+.reg-status.pending{color:#8a6f1a}
+.join-fine{font-size:12.5px;color:#6b7268;margin-top:16px;text-align:center}
+
+/* ===== Footer ===== */
+footer{background:var(--ink-deep);padding:56px 24px 28px;border-top:1px solid var(--line)}
+.footer-grid{display:flex;justify-content:space-between;flex-wrap:wrap;gap:28px;padding-bottom:36px;border-bottom:1px solid var(--line)}
+.footer-tag{font-size:13.5px;color:rgba(247,243,232,0.5);max-width:280px;margin-top:6px}
+.footer-links{display:flex;gap:28px;align-items:center}
+.footer-links a{font-size:13.5px;color:rgba(247,243,232,0.65)}
+.footer-links a:hover{color:var(--gold)}
+.footer-bottom{padding-top:22px;font-size:12px;color:rgba(247,243,232,0.4)}
+
+@media(max-width:880px){
+  .hero-grid{grid-template-columns:1fr;gap:48px}
+  .book-stage{height:340px;order:-1}
+  .book{width:260px;height:290px}
+  .nav-links{display:none}
+  .how-grid{grid-template-columns:1fr}
+  .shelf-row{grid-template-columns:repeat(2,1fr)}
+  .join-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <div class="brand">
+      <div class="brand-mark">C</div>
+      <div>
+        <div class="brand-name">Chief Book Club</div>
+        <span class="brand-tag">Read · Discuss · Grow</span>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a href="#shelf" class="nav-link">The Shelf</a>
+      <a href="#meetings" class="nav-link">Meetings</a>
+      <a href="#how" class="nav-link">How it works</a>
+    </nav>
+    <div class="nav-actions">
+      <a href="#" class="nav-link" id="nav-login">Member login</a>
+      <a href="#join" class="btn btn-gold">Join the club</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-grid">
+    <div>
+      <div class="eyebrow hero-eyebrow">A reading circle, made digital</div>
+      <h1>One shelf.<br>One circle.<br><em>Every voice heard.</em></h1>
+      <p>Chief Book Club brings together readers who show up — for the books, for the arguments, and for each other. Join for KES 100, get the reading list, and meet us live when someone presents.</p>
+      <div class="hero-ctas">
+        <a href="#join" class="btn btn-gold">Become a member — KES 100</a>
+        <a href="#shelf" class="btn btn-outline">Browse the shelf</a>
+      </div>
+      <div class="hero-stats">
+        <div><div class="hstat-num" id="stat-members">—</div><div class="hstat-label">Members</div></div>
+        <div><div class="hstat-num" id="stat-books">—</div><div class="hstat-label">Books on the shelf</div></div>
+        <div><div class="hstat-num" id="stat-meetings">—</div><div class="hstat-label">Meetings held</div></div>
+      </div>
+    </div>
+    <div class="book-stage">
+      <div class="orbit-tag t1"><span class="dot-live"></span> Live tonight, 8PM</div>
+      <div class="orbit-tag t2">📖 KES 150 / book</div>
+      <div class="orbit-tag t3">💬 Open floor</div>
+      <div class="book">
+        <div class="bookmark"></div>
+        <div class="book-page left"><div class="book-lines"><div class="bline"></div><div class="bline"></div><div class="bline"></div><div class="bline"></div><div class="bline"></div><div class="bline"></div><div class="bline"></div></div></div>
+        <div class="book-page right"><div class="book-lines"><div class="bline"></div><div class="bline"></div><div class="bline"></div><div class="bline"></div><div class="bline"></div><div class="bline"></div><div class="bline"></div></div></div>
+        <div class="book-spine"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== HOW IT WORKS ===== -->
+<section class="how" id="how">
+  <div class="wrap">
+    <div class="eyebrow">How membership works</div>
+    <h2 class="section-title">Three steps. No middleman.</h2>
+    <div class="how-grid">
+      <div class="how-card">
+        <div class="how-stamp">PAY</div>
+        <h3>Register for KES 100</h3>
+        <p>Pay once with M-Pesa — a phone prompt, your PIN, done. That's your seat in the circle, for good.</p>
+      </div>
+      <div class="how-card">
+        <div class="how-stamp">READ</div>
+        <h3>Buy books from the shelf</h3>
+        <p>Each title is a PDF priced individually. Pay, download, keep it — no subscription, no expiry.</p>
+      </div>
+      <div class="how-card">
+        <div class="how-stamp">MEET</div>
+        <h3>Join the live discussion</h3>
+        <p>When it's time, click "Join meeting" on your dashboard. A real video room opens — no app to install.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== THE SHELF ===== -->
+<section class="shelf" id="shelf">
+  <div class="wrap">
+    <div class="shelf-head">
+      <div>
+        <div class="eyebrow">The shelf</div>
+        <h2 class="section-title">What we're reading</h2>
+      </div>
+      <a href="#join" class="btn btn-outline">Join to unlock the shelf</a>
+    </div>
+    <div class="shelf-row" id="shelf-preview">
+      <!-- populated by JS once live; static teaser cards below for now -->
+      <div class="book-card">
+        <div class="book-cover bc-1"><span class="lock">🔒</span></div>
+        <div class="book-card-title">Members-only title</div>
+        <div class="book-card-meta">Join to see the full shelf</div>
+      </div>
+      <div class="book-card">
+        <div class="book-cover bc-2"><span class="lock">🔒</span></div>
+        <div class="book-card-title">Members-only title</div>
+        <div class="book-card-meta">Join to see the full shelf</div>
+      </div>
+      <div class="book-card">
+        <div class="book-cover bc-3"><span class="lock">🔒</span></div>
+        <div class="book-card-title">Members-only title</div>
+        <div class="book-card-meta">Join to see the full shelf</div>
+      </div>
+      <div class="book-card">
+        <div class="book-cover bc-4"><span class="lock">🔒</span></div>
+        <div class="book-card-title">Members-only title</div>
+        <div class="book-card-meta">Join to see the full shelf</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== MEETINGS PREVIEW ===== -->
+<section class="meetings-preview" id="meetings">
+  <div class="wrap">
+    <div class="eyebrow">Live discussions</div>
+    <h2 class="section-title">We still gather. Just online.</h2>
+    <p class="meetings-sub">Someone presents, everyone talks — same as a living-room book club, minus the traffic to get there.</p>
+    <div class="meeting-stamp-card">
+      <div class="stamp-date">
+        <div class="stamp-day">SAT</div>
+        <div class="stamp-num">--</div>
+      </div>
+      <div class="stamp-info">
+        <div class="stamp-title">Next meeting details appear once you're a member</div>
+        <div class="stamp-time">Join to see the schedule →</div>
+      </div>
+      <a href="#join" class="btn btn-ember">Join to attend</a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER / JOIN ===== -->
+<section class="join-cta" id="join">
+  <div class="wrap join-grid">
+    <div>
+      <div class="eyebrow">Ready when you are</div>
+      <h2 class="section-title">Your seat is KES 100.</h2>
+      <p class="meetings-sub">Pay once. Read what you like. Show up when you can.</p>
+    </div>
+    <div class="join-card" id="join-card">
+      <div id="join-step-form">
+        <h3 class="join-card-title">Create your membership</h3>
+        <div class="fl"><label>Full name</label><input type="text" id="reg-name" placeholder="e.g. Wanjiru Kamau"></div>
+        <div class="fl"><label>Phone number (M-Pesa)</label><input type="tel" id="reg-phone" placeholder="07XXXXXXXX"></div>
+        <div class="fl"><label>Email (optional)</label><input type="email" id="reg-email" placeholder="you@email.com"></div>
+        <button class="btn btn-gold join-submit" onclick="startRegistration()" id="reg-submit-btn">Pay KES 100 & join →</button>
+        <div id="reg-status" class="reg-status"></div>
+        <p class="join-fine">Already a member? <a href="#" id="join-login-link" style="color:var(--gold);text-decoration:underline">Log in here</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-grid">
+    <div>
+      <div class="brand" style="margin-bottom:10px">
+        <div class="brand-mark">C</div>
+        <div class="brand-name" style="color:var(--parchment)">Chief Book Club</div>
+      </div>
+      <p class="footer-tag">A reading circle, made digital. Run by readers, for readers.</p>
+    </div>
+    <div class="footer-links">
+      <a href="#shelf">The Shelf</a>
+      <a href="#meetings">Meetings</a>
+      <a href="#how">How it works</a>
+    </div>
+  </div>
+  <div class="wrap footer-bottom">© <span id="cur-year"></span> Chief Book Club. All books shared here are for personal member use.</div>
+</footer>
+
+<script>
+document.getElementById('cur-year').textContent = new Date().getFullYear();
+
+// ============================================================
+// SUPABASE CONFIG — create a free project at supabase.com,
+// then paste your Project URL + anon key below.
+// ============================================================
+const SUPABASE_URL = ''; // e.g. 'https://xxxx.supabase.co'
+const SUPABASE_ANON_KEY = ''; // your anon/public key
+
+let supabaseClient = null;
+let dbMode = 'session'; // 'supabase' | 'session'
+let DB = { members: [], books: [], purchases: [], meetings: [] };
+
+function initSupabase(){
+  if(!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  dbMode = 'supabase';
+}
+
+async function dbUpsert(table, id, data){
+  if(dbMode!=='supabase') return;
+  try{ await supabaseClient.from(table).upsert({ id, ...data }); }
+  catch(e){ console.error('dbUpsert failed', table, e); }
+}
+async function dbFetchAll(table){
+  if(dbMode!=='supabase') return [];
+  try{
+    const { data, error } = await supabaseClient.from(table).select('*');
+    if(error) throw error;
+    return data || [];
+  }catch(e){ console.error('dbFetchAll failed', table, e); return []; }
+}
+
+async function loadAllFromDB(){
+  const [members, books, purchases, meetings] = await Promise.all([
+    dbFetchAll('cbc_members'), dbFetchAll('cbc_books'),
+    dbFetchAll('cbc_purchases'), dbFetchAll('cbc_meetings')
+  ]);
+  if(members.length) DB.members = members;
+  if(books.length) DB.books = books;
+  if(purchases.length) DB.purchases = purchases;
+  if(meetings.length) DB.meetings = meetings;
+  renderStats();
+  renderShelfPreview();
+  renderNextMeeting();
+}
+
+function renderStats(){
+  document.getElementById('stat-members').textContent = DB.members.length || '12';
+  document.getElementById('stat-books').textContent = DB.books.length || '8';
+  document.getElementById('stat-meetings').textContent = DB.meetings.filter(m=>m.status==='held').length || '5';
+}
+
+function renderShelfPreview(){
+  // Public landing page always shows locked teaser cards regardless of
+  // real inventory — full shelf only visible after login. This function
+  // is reserved for future use (e.g. showing real cover art on lock cards).
+}
+
+function renderNextMeeting(){
+  const upcoming = (DB.meetings||[]).filter(m=>m.status!=='held').sort((a,b)=>new Date(a.datetime)-new Date(b.datetime))[0];
+  if(!upcoming) return;
+  const d = new Date(upcoming.datetime);
+  const day = d.toLocaleDateString('en-US',{weekday:'short'}).toUpperCase();
+  const date = d.getDate();
+  const time = d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  document.querySelector('.stamp-day').textContent = day;
+  document.querySelector('.stamp-num').textContent = date;
+  document.querySelector('.stamp-title').textContent = upcoming.title || 'Members-only meeting';
+  document.querySelector('.stamp-time').textContent = `${time} · Join to attend →`;
+}
+
+// ============================================================
+// DARAJA (M-PESA) — reuses the existing smartedge-daraja backend.
+// Set this to the SAME Vercel URL used for SmartEdge — one backend,
+// two frontends. No new deployment needed.
+// ============================================================
+const DARAJA_API_BASE = ''; // e.g. 'https://smartedge-daraja.vercel.app/api'
+function darajaEnabled(){ return !!DARAJA_API_BASE; }
+
+async function darajaStkPush(phone, amount, accountRef, description){
+  const res = await fetch(`${DARAJA_API_BASE}/stk-push`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({phone, amount, accountRef, description})
+  });
+  const data = await res.json();
+  if(!res.ok || !data.success) throw new Error(data.error || 'STK push failed');
+  return data;
+}
+async function darajaCheckStatus(checkoutRequestId){
+  const res = await fetch(`${DARAJA_API_BASE}/status?checkoutRequestId=${encodeURIComponent(checkoutRequestId)}`);
+  return res.json();
+}
+function darajaPollUntilDone(checkoutRequestId, onUpdate){
+  return new Promise((resolve, reject)=>{
+    let tries=0; const maxTries=40;
+    const iv=setInterval(async ()=>{
+      tries++;
+      try{
+        const rec=await darajaCheckStatus(checkoutRequestId);
+        onUpdate&&onUpdate(rec);
+        if(rec.status==='success'){clearInterval(iv);resolve(rec);}
+        else if(rec.status==='failed'){clearInterval(iv);reject(new Error(rec.resultDesc||'Payment failed or was cancelled.'));}
+        else if(tries>=maxTries){clearInterval(iv);reject(new Error('Timed out waiting for payment. If you completed it on your phone, contact us to confirm manually.'));}
+      }catch(e){ if(tries>=maxTries){clearInterval(iv);reject(e);} }
+    },3000);
+  });
+}
+
+// ============================================================
+// REGISTRATION FLOW
+// ============================================================
+const REGISTRATION_FEE = 100;
+
+async function startRegistration(){
+  const name = document.getElementById('reg-name').value.trim();
+  const phone = document.getElementById('reg-phone').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const statusEl = document.getElementById('reg-status');
+  const btnEl = document.getElementById('reg-submit-btn');
+
+  if(!name){ statusEl.className='reg-status error'; statusEl.textContent='Please enter your full name.'; return; }
+  if(!phone || phone.replace(/[^0-9]/g,'').length<9){ statusEl.className='reg-status error'; statusEl.textContent='Please enter a valid M-Pesa phone number.'; return; }
+
+  if(DB.members.find(m=>m.phone===phone.replace(/[^0-9]/g,''))){
+    statusEl.className='reg-status error';
+    statusEl.textContent='This phone number is already registered. Try logging in instead.';
+    return;
+  }
+
+  if(!darajaEnabled()){
+    statusEl.className='reg-status error';
+    statusEl.textContent='Payments aren\'t connected yet. Set DARAJA_API_BASE in the code first.';
+    return;
+  }
+
+  btnEl.disabled = true; btnEl.textContent = 'Sending prompt…';
+  statusEl.className = 'reg-status pending';
+  statusEl.textContent = '⏳ Sending request…';
+
+  try{
+    const memberId = 'mem'+Date.now();
+    const { checkoutRequestId } = await darajaStkPush(phone, REGISTRATION_FEE, name.slice(0,12), 'CBC Membership');
+    statusEl.textContent = '📲 Check your phone — enter your M-Pesa PIN to complete payment. Waiting…';
+    btnEl.textContent = 'Waiting for payment…';
+
+    const result = await darajaPollUntilDone(checkoutRequestId, (rec)=>{
+      if(rec.status==='pending') statusEl.textContent = '📲 Still waiting for you to confirm on your phone…';
+    });
+
+    const member = {
+      id: memberId, name, phone: phone.replace(/[^0-9]/g,''), email,
+      joinedAt: new Date().toISOString(),
+      regCode: result.mpesaReceiptNumber || ('REG'+Date.now()),
+      role: 'member'
+    };
+    DB.members.push(member);
+    await dbUpsert('cbc_members', member.id, member);
+
+    statusEl.className = 'reg-status success';
+    statusEl.textContent = `✅ Welcome to Chief Book Club, ${name.split(' ')[0]}! Your membership is active.`;
+    renderStats();
+
+    localStorage.setItem('cbc_session_phone', member.phone);
+    setTimeout(()=>{ window.location.href = 'dashboard.html'; }, 1500);
+  }catch(e){
+    statusEl.className = 'reg-status error';
+    statusEl.textContent = `⚠️ ${e.message}`;
+    btnEl.disabled = false;
+    btnEl.textContent = 'Pay KES 100 & join →';
+  }
+}
+
+document.getElementById('join-login-link').addEventListener('click', (e)=>{
+  e.preventDefault();
+  window.location.href = 'login.html';
+});
+document.getElementById('nav-login').addEventListener('click', (e)=>{
+  e.preventDefault();
+  window.location.href = 'login.html';
+});
+
+initSupabase();
+loadAllFromDB();
+</script>
+</body>
+</html>

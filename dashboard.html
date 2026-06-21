@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Chief Book Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://meet.jit.si/external_api.js"></script>
+<style>
+:root{
+  --ink:#1B2B22;--ink-deep:#0D1410;--parchment:#F7F3E8;--parchment-dim:#EFE8D8;
+  --gold:#C9A227;--gold-bright:#E0BC4A;--moss:#2D4838;--moss-light:#3D5C48;--ember:#E8633C;
+  --line:rgba(247,243,232,0.12);--line-dark:rgba(13,20,16,0.1);
+  --font-display:'Fraunces',serif;--font-body:'Inter',sans-serif;--font-mono:'JetBrains Mono',monospace;
+  --radius:4px;--radius-lg:8px;--shadow:0 4px 24px rgba(13,20,16,0.18);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-body);background:var(--ink);color:var(--parchment);-webkit-font-smoothing:antialiased;min-height:100vh}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+header{background:rgba(27,43,34,0.95);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50;backdrop-filter:blur(10px)}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;max-width:1180px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:34px;height:34px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--ink-deep)}
+.brand-name{font-family:var(--font-display);font-size:16px;font-weight:600}
+.tabs{display:flex;gap:6px}
+.tab-btn{padding:9px 16px;border-radius:6px;font-size:13.5px;font-weight:600;color:rgba(247,243,232,0.6);transition:all .15s}
+.tab-btn:hover{color:var(--parchment)}
+.tab-btn.active{background:var(--moss);color:var(--gold)}
+.user-chip{display:flex;align-items:center;gap:10px;font-size:13.5px}
+.user-name{font-weight:600}
+.logout-link{color:rgba(247,243,232,0.5);font-size:12.5px;text-decoration:underline}
+
+main{max-width:1180px;margin:0 auto;padding:36px 24px 80px}
+.view{display:none}
+.view.active{display:block}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.eyebrow::before{content:'';width:20px;height:1px;background:var(--gold);display:inline-block}
+.page-title{font-family:var(--font-display);font-size:32px;font-weight:600;margin-bottom:28px}
+
+.shelf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:22px}
+.book-card{background:var(--moss);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;transition:transform .15s}
+.book-card:hover{transform:translateY(-3px)}
+.book-cover{width:100%;aspect-ratio:3/4;border-radius:5px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 10px 24px rgba(0,0,0,0.3);border-left:5px solid rgba(0,0,0,0.25)}
+.book-title{font-size:14.5px;font-weight:700;margin-bottom:4px;line-height:1.3}
+.book-author{font-size:12.5px;color:rgba(247,243,232,0.55);margin-bottom:12px}
+.book-price{font-family:var(--font-mono);font-size:13px;color:var(--gold);font-weight:600;margin-bottom:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;font-size:13px;font-weight:700;border-radius:5px;transition:all .15s;width:100%}
+.btn-gold{background:var(--gold);color:var(--ink-deep)}
+.btn-gold:hover{background:var(--gold-bright)}
+.btn-owned{background:rgba(45,106,62,0.25);color:#7FCB95;cursor:default}
+.btn-ember{background:var(--ember);color:#fff}
+.btn-ember:hover{background:#F0764F}
+.btn-outline{border:1.5px solid rgba(247,243,232,0.3);color:var(--parchment)}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.btn-sm{padding:7px 12px;font-size:12px;width:auto}
+.empty{text-align:center;padding:60px 20px;color:rgba(247,243,232,0.5)}
+.empty-icon{font-size:34px;margin-bottom:12px}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:200;padding:16px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--parchment);color:var(--ink-deep);border-radius:var(--radius-lg);max-width:440px;width:100%;padding:28px;box-shadow:0 30px 80px rgba(0,0,0,0.5)}
+.modal h3{font-family:var(--font-display);font-size:20px;margin-bottom:6px}
+.modal .sub{font-size:13.5px;color:#5b6760;margin-bottom:20px}
+.fl{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.fl label{font-size:11.5px;font-weight:700;color:#4a5550;text-transform:uppercase;letter-spacing:0.04em}
+.fl input,.fl textarea,.fl select{padding:11px 13px;border-radius:5px;border:1.5px solid #d8d0bd;font-size:14px;background:#fff;color:var(--ink-deep);font-family:inherit}
+.fl input:focus,.fl textarea:focus{outline:none;border-color:var(--gold)}
+.modal-actions{display:flex;gap:10px;margin-top:18px}
+.modal-status{margin-top:12px;font-size:13px}
+.modal-status.error{color:#B8442E}
+.modal-status.success{color:#2D6A3E}
+.modal-status.pending{color:#8a6f1a}
+.modal-close{position:absolute;top:18px;right:18px;font-size:18px;color:#888}
+
+.meeting-card{display:flex;align-items:center;gap:22px;background:var(--moss);border:1px solid var(--line);border-radius:var(--radius-lg);padding:22px 24px;margin-bottom:14px;flex-wrap:wrap}
+.stamp{background:var(--parchment);color:var(--ink-deep);border-radius:6px;padding:10px 16px;text-align:center;font-family:var(--font-mono);min-width:72px;transform:rotate(-2deg);box-shadow:0 6px 14px rgba(0,0,0,0.25)}
+.stamp-day{font-size:10px;font-weight:700;letter-spacing:0.06em}
+.stamp-num{font-size:22px;font-weight:700;line-height:1}
+.meeting-info{flex:1;min-width:200px}
+.meeting-title{font-size:15.5px;font-weight:700;margin-bottom:3px}
+.meeting-meta{font-size:12.5px;color:rgba(247,243,232,0.55);font-family:var(--font-mono)}
+.live-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(232,99,60,0.18);color:var(--ember);font-size:11px;font-weight:700;padding:4px 9px;border-radius:12px;margin-left:8px}
+.dot-live{width:6px;height:6px;border-radius:50%;background:var(--ember);animation:pulseDot 2s infinite}
+@keyframes pulseDot{0%{box-shadow:0 0 0 0 rgba(232,99,60,0.5)}70%{box-shadow:0 0 0 7px rgba(232,99,60,0)}100%{box-shadow:0 0 0 0 rgba(232,99,60,0)}}
+
+#jitsi-container{position:fixed;inset:0;background:#000;z-index:500;display:none}
+#jitsi-container.show{display:block}
+#jitsi-frame-holder{width:100%;height:100%}
+.jitsi-exit{position:absolute;top:16px;right:16px;z-index:600;background:var(--ember);color:#fff;padding:9px 16px;border-radius:6px;font-size:13px;font-weight:700}
+
+.admin-section{margin-bottom:44px}
+.admin-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.section-h{font-family:var(--font-display);font-size:20px;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:10px 12px;color:rgba(247,243,232,0.5);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--line)}
+td{padding:12px 12px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:none}
+.pill{display:inline-flex;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700}
+.pill-gold{background:rgba(201,162,39,0.2);color:var(--gold)}
+.pill-green{background:rgba(45,106,62,0.25);color:#7FCB95}
+.pill-ember{background:rgba(232,99,60,0.2);color:var(--ember)}
+
+@media(max-width:780px){
+  .tabs{display:none}
+  .shelf-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <div class="brand"><div class="brand-mark">C</div><div class="brand-name">Chief Book Club</div></div>
+    <div class="tabs">
+      <button class="tab-btn active" data-view="shelf" onclick="switchView('shelf')">The Shelf</button>
+      <button class="tab-btn" data-view="meetings" onclick="switchView('meetings')">Meetings</button>
+      <button class="tab-btn" data-view="library" onclick="switchView('library')">My Library</button>
+      <button class="tab-btn" id="admin-tab-btn" data-view="admin" onclick="switchView('admin')" style="display:none">Admin</button>
+    </div>
+    <div class="user-chip">
+      <span class="user-name" id="user-name-chip">—</span>
+      <a href="#" class="logout-link" onclick="logout()">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="view active" id="view-shelf">
+    <div class="eyebrow">The shelf</div>
+    <h1 class="page-title">Browse the collection</h1>
+    <div class="shelf-grid" id="shelf-grid"></div>
+  </div>
+
+  <div class="view" id="view-meetings">
+    <div class="eyebrow">Live discussions</div>
+    <h1 class="page-title">Upcoming &amp; past meetings</h1>
+    <div id="meetings-list"></div>
+  </div>
+
+  <div class="view" id="view-library">
+    <div class="eyebrow">Owned by you</div>
+    <h1 class="page-title">My library</h1>
+    <div class="shelf-grid" id="library-grid"></div>
+  </div>
+
+  <div class="view" id="view-admin">
+    <div class="eyebrow">Admin</div>
+    <h1 class="page-title">Run the club</h1>
+
+    <div class="admin-section">
+      <div class="admin-head">
+        <div class="section-h">Books on the shelf</div>
+        <button class="btn btn-gold btn-sm" onclick="openBookModal()">+ Add a book</button>
+      </div>
+      <table id="admin-books-table">
+        <thead><tr><th>Title</th><th>Author</th><th>Price</th><th>Sold</th><th></th></tr></thead>
+        <tbody id="admin-books-body"></tbody>
+      </table>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-head">
+        <div class="section-h">Meetings</div>
+        <button class="btn btn-gold btn-sm" onclick="openMeetingModal()">+ Schedule a meeting</button>
+      </div>
+      <table>
+        <thead><tr><th>Title</th><th>Presenter</th><th>When</th><th>Status</th><th></th></tr></thead>
+        <tbody id="admin-meetings-body"></tbody>
+      </table>
+    </div>
+
+    <div class="admin-section">
+      <div class="admin-head"><div class="section-h">Members (<span id="member-count">0</span>)</div></div>
+      <table>
+        <thead><tr><th>Name</th><th>Phone</th><th>Joined</th><th>Reg. code</th></tr></thead>
+        <tbody id="admin-members-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div class="modal-overlay" id="buy-modal-overlay">
+  <div class="modal" style="position:relative">
+    <span class="modal-close" onclick="closeModal('buy-modal-overlay')">✕</span>
+    <h3 id="buy-modal-title">Buy this book</h3>
+    <p class="sub" id="buy-modal-sub"></p>
+    <div class="fl"><label>M-Pesa phone number</label><input type="tel" id="buy-phone" placeholder="07XXXXXXXX"></div>
+    <button class="btn btn-gold" id="buy-submit-btn" onclick="buyBook()">Pay &amp; download</button>
+    <div class="modal-status" id="buy-status"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="book-modal-overlay">
+  <div class="modal" style="position:relative">
+    <span class="modal-close" onclick="closeModal('book-modal-overlay')">✕</span>
+    <h3>Add a book to the shelf</h3>
+    <p class="sub">Members will see this on the shelf immediately.</p>
+    <div class="fl"><label>Title</label><input type="text" id="nb-title" placeholder="e.g. Atomic Habits"></div>
+    <div class="fl"><label>Author</label><input type="text" id="nb-author" placeholder="e.g. James Clear"></div>
+    <div class="fl"><label>Price (KES)</label><input type="number" id="nb-price" placeholder="150"></div>
+    <div class="fl"><label>PDF link (Google Drive, Dropbox, etc — shareable link)</label><input type="text" id="nb-link" placeholder="https://..."></div>
+    <button class="btn btn-gold" onclick="addBook()">Add to shelf</button>
+    <div class="modal-status" id="book-modal-status"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="meeting-modal-overlay">
+  <div class="modal" style="position:relative">
+    <span class="modal-close" onclick="closeModal('meeting-modal-overlay')">✕</span>
+    <h3>Schedule a meeting</h3>
+    <p class="sub">A live video room is created automatically — no separate setup.</p>
+    <div class="fl"><label>Topic / book being discussed</label><input type="text" id="nm-title" placeholder="e.g. Atomic Habits — Chapters 1-4"></div>
+    <div class="fl"><label>Presenter</label><input type="text" id="nm-presenter" placeholder="e.g. Wanjiru Kamau"></div>
+    <div class="fl"><label>Date &amp; time</label><input type="datetime-local" id="nm-datetime"></div>
+    <button class="btn btn-gold" onclick="addMeeting()">Schedule meeting</button>
+    <div class="modal-status" id="meeting-modal-status"></div>
+  </div>
+</div>
+
+<div id="jitsi-container">
+  <button class="jitsi-exit" onclick="leaveMeeting()">Leave meeting</button>
+  <div id="jitsi-frame-holder"></div>
+</div>
+
+<script>
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
+const DARAJA_API_BASE = '';
+
+let supabaseClient = null;
+let dbMode = 'session';
+let DB = { members: [], books: [], purchases: [], meetings: [] };
+let currentUser = null;
+let jitsiApi = null;
+
+function initSupabase(){
+  if(!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  dbMode = 'supabase';
+}
+async function dbUpsert(table, id, data){
+  if(dbMode!=='supabase') return;
+  try{ await supabaseClient.from(table).upsert({ id, ...data }); }
+  catch(e){ console.error('dbUpsert failed', table, e); }
+}
+async function dbFetchAll(table){
+  if(dbMode!=='supabase') return [];
+  try{
+    const { data, error } = await supabaseClient.from(table).select('*');
+    if(error) throw error;
+    return data || [];
+  }catch(e){ console.error('dbFetchAll failed', table, e); return []; }
+}
+
+function darajaEnabled(){ return !!DARAJA_API_BASE; }
+async function darajaStkPush(phone, amount, accountRef, description){
+  const res = await fetch(`${DARAJA_API_BASE}/stk-push`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({phone, amount, accountRef, description})
+  });
+  const data = await res.json();
+  if(!res.ok || !data.success) throw new Error(data.error || 'STK push failed');
+  return data;
+}
+async function darajaCheckStatus(checkoutRequestId){
+  const res = await fetch(`${DARAJA_API_BASE}/status?checkoutRequestId=${encodeURIComponent(checkoutRequestId)}`);
+  return res.json();
+}
+function darajaPollUntilDone(checkoutRequestId, onUpdate){
+  return new Promise((resolve, reject)=>{
+    let tries=0; const maxTries=40;
+    const iv=setInterval(async ()=>{
+      tries++;
+      try{
+        const rec=await darajaCheckStatus(checkoutRequestId);
+        onUpdate&&onUpdate(rec);
+        if(rec.status==='success'){clearInterval(iv);resolve(rec);}
+        else if(rec.status==='failed'){clearInterval(iv);reject(new Error(rec.resultDesc||'Payment failed or was cancelled.'));}
+        else if(tries>=maxTries){clearInterval(iv);reject(new Error('Timed out waiting for payment.'));}
+      }catch(e){ if(tries>=maxTries){clearInterval(iv);reject(e);} }
+    },3000);
+  });
+}
+
+const ADMIN_PHONES = ['0707527401'];
+
+function normPhone(p){ return (p||'').replace(/[^0-9]/g,'').replace(/^254/,'0'); }
+
+async function checkSession(){
+  const sessionPhone = localStorage.getItem('cbc_session_phone');
+  if(!sessionPhone){ window.location.href = 'login.html'; return; }
+  await loadAllFromDB();
+  currentUser = DB.members.find(m => m.phone === sessionPhone);
+  if(!currentUser){ window.location.href = 'login.html'; return; }
+  document.getElementById('user-name-chip').textContent = currentUser.name.split(' ')[0];
+  if(ADMIN_PHONES.includes(normPhone(currentUser.phone))){
+    document.getElementById('admin-tab-btn').style.display = '';
+  }
+  renderShelf();
+  renderMeetings();
+  renderLibrary();
+  renderAdmin();
+}
+
+function logout(){
+  localStorage.removeItem('cbc_session_phone');
+  localStorage.removeItem('cbc_session_id');
+  window.location.href = 'index.html';
+}
+
+async function loadAllFromDB(){
+  const [members, books, purchases, meetings] = await Promise.all([
+    dbFetchAll('cbc_members'), dbFetchAll('cbc_books'),
+    dbFetchAll('cbc_purchases'), dbFetchAll('cbc_meetings')
+  ]);
+  DB.members = members; DB.books = books; DB.purchases = purchases; DB.meetings = meetings;
+}
+
+function switchView(view){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.querySelector(`.tab-btn[data-view="${view}"]`).classList.add('active');
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+
+const COVER_COLORS = ['linear-gradient(150deg,#2D4838,#1B2B22)','linear-gradient(150deg,#C9A227,#8a6f1a)','linear-gradient(150deg,#E8633C,#a3422a)','linear-gradient(150deg,#3D5C48,#1B2B22)'];
+
+function ownsBook(bookId){
+  return DB.purchases.some(p => p.bookId===bookId && p.memberId===currentUser.id);
+}
+
+function renderShelf(){
+  const grid = document.getElementById('shelf-grid');
+  if(!DB.books.length){
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📚</div>No books on the shelf yet. ${isAdmin()?'Add one from the Admin tab.':'Check back soon.'}</div>`;
+    return;
+  }
+  grid.innerHTML = DB.books.map((b,i)=>{
+    const owned = ownsBook(b.id);
+    return `<div class="book-card">
+      <div class="book-cover" style="background:${COVER_COLORS[i%4]}">📖</div>
+      <div class="book-title">${escapeHtml(b.title)}</div>
+      <div class="book-author">${escapeHtml(b.author||'')}</div>
+      <div class="book-price">KES ${b.price}</div>
+      ${owned
+        ? `<button class="btn btn-owned" onclick="window.open('${b.link}','_blank')">✓ Open PDF</button>`
+        : `<button class="btn btn-gold" onclick="openBuyModal('${b.id}')">Buy now</button>`}
+    </div>`;
+  }).join('');
+}
+
+function renderLibrary(){
+  const grid = document.getElementById('library-grid');
+  const owned = DB.books.filter(b=>ownsBook(b.id));
+  if(!owned.length){
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📖</div>You haven't bought any books yet. Visit the shelf to browse.</div>`;
+    return;
+  }
+  grid.innerHTML = owned.map((b,i)=>`<div class="book-card">
+    <div class="book-cover" style="background:${COVER_COLORS[i%4]}">📖</div>
+    <div class="book-title">${escapeHtml(b.title)}</div>
+    <div class="book-author">${escapeHtml(b.author||'')}</div>
+    <button class="btn btn-owned" style="margin-top:8px" onclick="window.open('${b.link}','_blank')">✓ Open PDF</button>
+  </div>`).join('');
+}
+
+let activeBuyBookId = null;
+function openBuyModal(bookId){
+  const book = DB.books.find(b=>b.id===bookId);
+  activeBuyBookId = bookId;
+  document.getElementById('buy-modal-title').textContent = `Buy "${book.title}"`;
+  document.getElementById('buy-modal-sub').textContent = `KES ${book.price} · one-time purchase, yours to keep`;
+  document.getElementById('buy-phone').value = currentUser.phone.startsWith('0') ? currentUser.phone : '0'+currentUser.phone.slice(3);
+  document.getElementById('buy-status').textContent = '';
+  document.getElementById('buy-submit-btn').disabled = false;
+  document.getElementById('buy-submit-btn').textContent = 'Pay & download';
+  openModal('buy-modal-overlay');
+}
+
+async function buyBook(){
+  const book = DB.books.find(b=>b.id===activeBuyBookId);
+  const phone = document.getElementById('buy-phone').value.trim();
+  const statusEl = document.getElementById('buy-status');
+  const btnEl = document.getElementById('buy-submit-btn');
+
+  if(!phone || phone.replace(/[^0-9]/g,'').length<9){
+    statusEl.className='modal-status error'; statusEl.textContent='Enter a valid phone number.'; return;
+  }
+  if(!darajaEnabled()){
+    statusEl.className='modal-status error'; statusEl.textContent='Payments not connected yet (DARAJA_API_BASE is empty).'; return;
+  }
+
+  btnEl.disabled=true; btnEl.textContent='Sending prompt…';
+  statusEl.className='modal-status pending'; statusEl.textContent='⏳ Sending request…';
+
+  try{
+    const { checkoutRequestId } = await darajaStkPush(phone, book.price, currentUser.name.slice(0,12), book.title.slice(0,13));
+    statusEl.textContent = '📲 Check your phone — enter your M-Pesa PIN…';
+    btnEl.textContent = 'Waiting for payment…';
+
+    const result = await darajaPollUntilDone(checkoutRequestId, (rec)=>{
+      if(rec.status==='pending') statusEl.textContent = '📲 Still waiting…';
+    });
+
+    const purchase = {
+      id: 'pur'+Date.now(), bookId: book.id, memberId: currentUser.id,
+      amount: result.amountPaid || book.price,
+      receiptNumber: result.mpesaReceiptNumber || ('PUR'+Date.now()),
+      purchasedAt: new Date().toISOString()
+    };
+    DB.purchases.push(purchase);
+    await dbUpsert('cbc_purchases', purchase.id, purchase);
+
+    statusEl.className='modal-status success';
+    statusEl.textContent = '✅ Purchased! Opening your book…';
+    renderShelf(); renderLibrary();
+    setTimeout(()=>{ window.open(book.link,'_blank'); closeModal('buy-modal-overlay'); }, 1000);
+  }catch(e){
+    statusEl.className='modal-status error'; statusEl.textContent = `⚠️ ${e.message}`;
+    btnEl.disabled=false; btnEl.textContent='Pay & download';
+  }
+}
+
+function renderMeetings(){
+  const list = document.getElementById('meetings-list');
+  if(!DB.meetings.length){
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🗓️</div>No meetings scheduled yet.</div>`;
+    return;
+  }
+  const sorted = [...DB.meetings].sort((a,b)=>new Date(a.datetime)-new Date(b.datetime));
+  list.innerHTML = sorted.map(m=>{
+    const d = new Date(m.datetime);
+    const day = d.toLocaleDateString('en-US',{weekday:'short'}).toUpperCase();
+    const now = new Date();
+    const isLiveWindow = Math.abs(now-d) < 1000*60*60*2;
+    return `<div class="meeting-card">
+      <div class="stamp"><div class="stamp-day">${day}</div><div class="stamp-num">${d.getDate()}</div></div>
+      <div class="meeting-info">
+        <div class="meeting-title">${escapeHtml(m.title)} ${isLiveWindow?'<span class="live-badge"><span class="dot-live"></span> LIVE WINDOW</span>':''}</div>
+        <div class="meeting-meta">Presented by ${escapeHtml(m.presenter||'TBA')} · ${d.toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</div>
+      </div>
+      <button class="btn ${isLiveWindow?'btn-ember':'btn-outline'}" style="width:auto" onclick="joinMeeting('${m.id}')">${isLiveWindow?'Join now →':'View details'}</button>
+    </div>`;
+  }).join('');
+}
+
+function joinMeeting(meetingId){
+  const meeting = DB.meetings.find(m=>m.id===meetingId);
+  const roomName = 'ChiefBookClub-' + meeting.id;
+  document.getElementById('jitsi-container').classList.add('show');
+  jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
+    roomName,
+    parentNode: document.getElementById('jitsi-frame-holder'),
+    width: '100%', height: '100%',
+    userInfo: { displayName: currentUser.name },
+    configOverwrite: { prejoinPageEnabled: true },
+  });
+}
+function leaveMeeting(){
+  if(jitsiApi){ jitsiApi.executeCommand('hangup'); jitsiApi.dispose(); jitsiApi=null; }
+  document.getElementById('jitsi-container').classList.remove('show');
+}
+
+function isAdmin(){ return currentUser && ADMIN_PHONES.includes(normPhone(currentUser.phone)); }
+
+function openBookModal(){
+  document.getElementById('nb-title').value='';
+  document.getElementById('nb-author').value='';
+  document.getElementById('nb-price').value='';
+  document.getElementById('nb-link').value='';
+  document.getElementById('book-modal-status').textContent='';
+  openModal('book-modal-overlay');
+}
+async function addBook(){
+  const title = document.getElementById('nb-title').value.trim();
+  const author = document.getElementById('nb-author').value.trim();
+  const price = Number(document.getElementById('nb-price').value);
+  const link = document.getElementById('nb-link').value.trim();
+  const statusEl = document.getElementById('book-modal-status');
+  if(!title || !price || !link){
+    statusEl.className='modal-status error'; statusEl.textContent='Title, price, and PDF link are required.'; return;
+  }
+  const book = { id:'bk'+Date.now(), title, author, price, link, addedAt:new Date().toISOString() };
+  DB.books.push(book);
+  await dbUpsert('cbc_books', book.id, book);
+  statusEl.className='modal-status success'; statusEl.textContent='Added to shelf!';
+  renderShelf(); renderAdmin();
+  setTimeout(()=>closeModal('book-modal-overlay'), 800);
+}
+
+function openMeetingModal(){
+  document.getElementById('nm-title').value='';
+  document.getElementById('nm-presenter').value='';
+  document.getElementById('nm-datetime').value='';
+  document.getElementById('meeting-modal-status').textContent='';
+  openModal('meeting-modal-overlay');
+}
+async function addMeeting(){
+  const title = document.getElementById('nm-title').value.trim();
+  const presenter = document.getElementById('nm-presenter').value.trim();
+  const datetime = document.getElementById('nm-datetime').value;
+  const statusEl = document.getElementById('meeting-modal-status');
+  if(!title || !datetime){
+    statusEl.className='modal-status error'; statusEl.textContent='Topic and date/time are required.'; return;
+  }
+  const meeting = { id:'mtg'+Date.now(), title, presenter, datetime: new Date(datetime).toISOString(), status:'scheduled' };
+  DB.meetings.push(meeting);
+  await dbUpsert('cbc_meetings', meeting.id, meeting);
+  statusEl.className='modal-status success'; statusEl.textContent='Meeting scheduled!';
+  renderMeetings(); renderAdmin();
+  setTimeout(()=>closeModal('meeting-modal-overlay'), 800);
+}
+
+function renderAdmin(){
+  if(!isAdmin()) return;
+  document.getElementById('admin-books-body').innerHTML = DB.books.map(b=>{
+    const sold = DB.purchases.filter(p=>p.bookId===b.id).length;
+    return `<tr><td>${escapeHtml(b.title)}</td><td>${escapeHtml(b.author||'—')}</td><td>KES ${b.price}</td><td>${sold}</td><td><a href="${b.link}" target="_blank" style="color:var(--gold);font-size:12px;text-decoration:underline">View PDF</a></td></tr>`;
+  }).join('') || `<tr><td colspan="5" style="color:rgba(247,243,232,0.4)">No books yet</td></tr>`;
+
+  document.getElementById('admin-meetings-body').innerHTML = DB.meetings.map(m=>{
+    const d = new Date(m.datetime);
+    const isPast = d < new Date();
+    return `<tr><td>${escapeHtml(m.title)}</td><td>${escapeHtml(m.presenter||'—')}</td><td>${d.toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'})}</td><td><span class="pill ${isPast?'pill-green':'pill-gold'}">${isPast?'Held':'Scheduled'}</span></td><td></td></tr>`;
+  }).join('') || `<tr><td colspan="5" style="color:rgba(247,243,232,0.4)">No meetings yet</td></tr>`;
+
+  document.getElementById('member-count').textContent = DB.members.length;
+  document.getElementById('admin-members-body').innerHTML = DB.members.map(m=>
+    `<tr><td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.phone)}</td><td>${new Date(m.joinedAt).toLocaleDateString()}</td><td style="font-family:var(--font-mono);font-size:12px">${escapeHtml(m.regCode||'—')}</td></tr>`
+  ).join('') || `<tr><td colspan="4" style="color:rgba(247,243,232,0.4)">No members yet</td></tr>`;
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML;
+}
+
+initSupabase();
+checkSession();
+</script>
+</body>
+</html>
